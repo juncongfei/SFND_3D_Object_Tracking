@@ -137,6 +137,23 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
 }
 
 
+double getMedian(std::vector<double> v)
+{
+    double median = 0.0;
+    int size = v.size();
+    std::sort(v.begin(), v.end());
+    if (size % 2 == 0)
+    {
+        median = (v[size / 2] + v[size/2 - 1]) / 2;
+    }
+    else
+    {
+        median = v[size / 2];
+    }
+    return median;
+}
+
+
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
@@ -148,7 +165,25 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    double laneWidth = 4.0;
+    vector<double> distPrev, distCurr;
+
+    for (LidarPoint pt : lidarPointsPrev)
+    {
+        // lidar points within the ego lane
+        if(abs(pt.y) <= laneWidth / 2.0)
+            distPrev.push_back(pt.x);
+    }
+    for (LidarPoint pt : lidarPointsCurr)
+    {
+        if(abs(pt.y) <= laneWidth / 2.0)
+            distCurr.push_back(pt.x);
+    }
+
+    double dPrev = getMedian(distPrev);
+    double dCurr = getMedian(distCurr);
+    double dT = 1.0 / frameRate;
+    TTC = d1 * dt / (d0 - d1); // CVM
 }
 
 
