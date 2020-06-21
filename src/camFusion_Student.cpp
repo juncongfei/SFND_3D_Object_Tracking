@@ -154,5 +154,68 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    // Loop over the matches, to find out by which bboxes the keypoints are enclosed, both on the previous
+    // and the current frame.
+    // For each bbox in the current frame, find out the most frequently appeared box in the previous frame
+
+    std::multimap<int, int> currPrevBoxID {};
+    int maxPrevBoxID = 0;
+
+    for (auto match : matches)
+    {
+        // prevFrame.keypoints indexed by queryIdx
+        // currFrame.keypoints indexed by trainIdx
+        cv::KeyPoint prevKpt = prevFrame.keypoints[match.queryIdx];
+        cv::KeyPoint currKpt = currFrame.keypoints[match.trainIdx];
+
+        int prevBoxID = -1;
+        int currBoxID = -1;
+
+        // For each bounding box in the previous frame
+        for (auto bbox : prevFrame.boundingBoxes)
+        {
+            if (bbox.roi.contains(prevKpt.pt))
+                prevBoxID = bbox.boxID;
+        }
+
+        // For each bounding box in the current frame
+        for (auto bbox : currFrame.boundingBoxes)
+        {
+            if (bbox.roi.contains(currKp.pt))
+                currBoxID = bbox.boxID;
+        }
+
+        // Add the match to a multimap
+        // key: currBoxID
+        // value: prevBoxID
+        mmap.insert({currBoxID, prevBoxID});
+
+        maxPrevBoxID = std::max(maxPrevBoxID, prevBoxID);
+    }
+
+    // Loop over each box in the current frame, and get the most frequently matched box in the previous frame
+    for (auto box : currFrame.boundingBoxes)
+    {
+        // Get pair which have a key equivalent to the boxID in the current frame
+        currBoxID = box.boxID;
+        auto it = currPrevBoxID.equal_range(currBoxID);
+
+        // Create a vector of counts of prevBox
+        std::vector<int> counts(maxPrevBoxID + 1, 0);
+
+        // Count the frequency of prevBox
+        for (auto itr = it.first; itr != it.second; ++itr)
+        {
+            if (itr->second != -1)
+                counts[itr->second] += 1;
+        }
+
+        // Get the index (prevBoxID) of the maximum count element
+        matchedPrevBoxID = std::max_element(counts.begin(), counts.end()) - counts.begin();
+
+        // Return the best matching bounding box pairs
+        // key: matchedPrevBoxID
+        // value: currBoxID
+        bbBestMatches.insert({matchedPrevBoxID, currBoxID});
+    }
 }
