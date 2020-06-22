@@ -26,6 +26,13 @@ using namespace std;
 int main(int argc, const char *argv[])
 {
     /* INIT VARIABLES AND DATA STRUCTURES */
+    // Create an otput filestream object
+    std::ofstream result;
+    // Set it write and append mode
+    // result.open("../results/result.csv", std::fstream::out | std::fstream::app);
+
+    //  result << "detectorType" << "," << "descriptorType" << "," << "imageIndex" << "," << "TTC Lidar" << ","
+    //  << "TTC Camera" << endl;
 
     // data location
     string dataPath = "../";
@@ -129,10 +136,10 @@ int main(int argc, const char *argv[])
         clusterLidarWithROI((dataBuffer.end()-1)->boundingBoxes, (dataBuffer.end() - 1)->lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
+        bVis = false;
         if(bVis)
         {
-            show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
+            show3DObjects((dataBuffer.end()-1)->boundingBoxes, cv::Size(4.0, 20.0), cv::Size(900, 400), true);
         }
         bVis = false;
 
@@ -140,7 +147,7 @@ int main(int argc, const char *argv[])
         
         
         // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
+        // continue; // skips directly to the next image without processing what comes beneath
 
         /* DETECT IMAGE KEYPOINTS */
 
@@ -150,7 +157,7 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI"; // SHITOMASI, HARRIS, FAST, BRISK, ORB, AKAZE, SIFT
+        string detectorType = "HARRIS"; // SHITOMASI, HARRIS, FAST, BRISK, ORB, AKAZE, SIFT
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
@@ -204,12 +211,12 @@ int main(int argc, const char *argv[])
 
             vector<cv::DMatch> matches;
             string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
+            string descType = "DES_BINARY"; // DES_BINARY, DES_HOG
             string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
 
             matchDescriptors((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints,
                              (dataBuffer.end() - 2)->descriptors, (dataBuffer.end() - 1)->descriptors,
-                             matches, descriptorType, matcherType, selectorType);
+                             matches, descType, matcherType, selectorType);
 
             // store matches in current data frame
             (dataBuffer.end() - 1)->kptMatches = matches;
@@ -266,7 +273,7 @@ int main(int argc, const char *argv[])
                     //// STUDENT ASSIGNMENT
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
-                    double ttcCamera;
+                    double ttcCamera {0.0};
                     clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);                    
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
@@ -289,6 +296,9 @@ int main(int argc, const char *argv[])
                         cv::waitKey(0);
                     }
                     bVis = false;
+
+                    // result << detectorType << "," << descriptorType << "," << imgIndex << "," << ttcLidar << ","
+                    //        << ttcCamera << endl;
 
                 } // eof TTC computation
             } // eof loop over all BB matches            

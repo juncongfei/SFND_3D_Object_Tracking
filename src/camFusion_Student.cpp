@@ -133,29 +133,10 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    vector<double> distances;  // descriptor distance
-    std::vector<cv::DMatch>  kptMatchesROI;
-    for (cv::DMatch match : kptMatches)
-    {
-        cv::KeyPoint pCurr = kptsCurr[match.trainIdx];
-        if(boundingBox.roi.contains(pCurr.pt))
-            distances.push_back(match.distance);
-            kptMatchesROI.push_back(match);
-    }
-
-    // only return the match whose distance smaller than a threshold
-    double meanDist = accumulate(distances.begin(), distances.end(), 0.0);
-    if(distances.size() > 0)
-    {
-        meanDist /= distances.size();
-    }
-    else return;
-    double distThres = 0.8 * meanDist;
-
-    for (cv::DMatch matchROI : kptMatchesROI)
-    {
-        if(matchROI.distance < distThres)
-            boundingBox.kptMatches.push_back(matchROI);
+    for (cv::DMatch match : kptMatches) {
+        if (boundingBox.roi.contains(kptsCurr[match.trainIdx].pt)) {
+            boundingBox.kptMatches.push_back(match);
+        }
     }
 }
 
@@ -238,20 +219,17 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
     for (LidarPoint pt : lidarPointsPrev)
     {
-        // lidar points within the ego lane
-        if(abs(pt.y) <= laneWidth / 2.0)
-            distPrev.push_back(pt.x);
+        distPrev.push_back(pt.x);
     }
     for (LidarPoint pt : lidarPointsCurr)
     {
-        if(abs(pt.y) <= laneWidth / 2.0)
-            distCurr.push_back(pt.x);
+        distCurr.push_back(pt.x);
     }
 
     double dPrev = getMedian(distPrev);
     double dCurr = getMedian(distCurr);
     double dT = 1.0 / frameRate;
-    TTC = d1 * dt / (d0 - d1); // CVM
+    TTC = dCurr * dT / (dPrev - dCurr); // CVM
 }
 
 
@@ -260,7 +238,6 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     // Loop over the matches, to find out by which bboxes the keypoints are enclosed, both on the previous
     // and the current frame.
     // For each bbox in the current frame, find out the most frequently appeared box in the previous frame
-
     std::multimap<int, int> currPrevBoxID {};
     int maxPrevBoxID = 0;
 
@@ -284,14 +261,14 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         // For each bounding box in the current frame
         for (auto bbox : currFrame.boundingBoxes)
         {
-            if (bbox.roi.contains(currKp.pt))
+            if (bbox.roi.contains(currKpt.pt))
                 currBoxID = bbox.boxID;
         }
 
         // Add the match to a multimap
         // key: currBoxID
         // value: prevBoxID
-        mmap.insert({currBoxID, prevBoxID});
+        currPrevBoxID.insert({currBoxID, prevBoxID});
 
         maxPrevBoxID = std::max(maxPrevBoxID, prevBoxID);
     }
@@ -300,7 +277,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
     for (auto box : currFrame.boundingBoxes)
     {
         // Get pair which have a key equivalent to the boxID in the current frame
-        currBoxID = box.boxID;
+        int currBoxID = box.boxID;
         auto it = currPrevBoxID.equal_range(currBoxID);
 
         // Create a vector of counts of prevBox
@@ -314,7 +291,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         }
 
         // Get the index (prevBoxID) of the maximum count element
-        matchedPrevBoxID = std::max_element(counts.begin(), counts.end()) - counts.begin();
+        int matchedPrevBoxID = std::max_element(counts.begin(), counts.end()) - counts.begin();
 
         // Return the best matching bounding box pairs
         // key: matchedPrevBoxID
