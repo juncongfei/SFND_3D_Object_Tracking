@@ -36,3 +36,4 @@ build/
 images/
 .idea/
 cmake-build-debug/
+dat/
