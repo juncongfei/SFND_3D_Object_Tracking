@@ -33,7 +33,7 @@
 build/
 
 .vscode/
-images/
+images/KITTI/
 .idea/
 cmake-build-debug/
 dat/
